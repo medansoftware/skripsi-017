@@ -3,18 +3,88 @@
 {% block title %}{% if post is iterable %}Berita{% else %}{{ post.title }}{% endif %} - {{ app.name }}{% endblock %}
 
 {% block content %}
-<div class="container" style="background-color: white; margin-bottom: 10%;">
-	{% if post is iterable %}
-	{% for item in post %}
-		<ul style="margin-top: 2%;">
-			<li><a href="/post/{{ item.slug }}" class="btn btn-primary">{{ item.title }}</a> </li>
-		</ul>
-	{% endfor %}
+<style>
+.blog-grid-item {
+	margin-bottom: 30px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow: hidden;
+	background: #fff;
+	transition: box-shadow 0.2s ease;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.blog-grid-item:hover {
+	box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.blog-grid-img {
+	width: 100%;
+	height: 180px;
+	overflow: hidden;
+}
+
+.blog-grid-img img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.blog-grid-content {
+	padding: 15px;
+	flex: 1;
+}
+
+.blog-title {
+	font-size: 18px;
+	margin-top: 0;
+	margin-bottom: 10px;
+}
+
+.blog-meta {
+	font-size: 13px;
+	color: #888;
+	margin-bottom: 10px;
+}
+
+.blog-excerpt {
+	font-size: 14px;
+	color: #555;
+}
+
+.read-more {
+	display: block;
+	margin-top: 10px;
+	font-size: 13px;
+	color: #337ab7;
+}
+</style>
+
+<div class="container">
+  <div class="row">
+  	{% if post is iterable %}
+		{% for item in post %}
+			<div class="col-sm-4">
+				<div class="blog-grid-item">
+					<div class="blog-grid-img">
+						<img src="https://placehold.co/600x400" alt="Blog 1">
+					</div>
+					<div class="blog-grid-content">
+					<h4 class="blog-title">{{ item.title }}</h4>
+					<div class="blog-meta">{{ item.updated_at }}</div>
+					<div class="blog-excerpt">
+						{{ item.excerpt | raw }}
+					</div>
+						<a href="/post/{{ item.slug }}" class="read-more">Baca selengkapnya</a>
+					</div>
+				</div>
+			</div>
+		{% endfor %}
 	{% else %}
-	<div class="starter-template">
-		<h1>{{ post.title }}</h1>
-		<p>{{ post.content|raw }}</p>
-	</div>
+	xxxx
 	{% endif %}
+   </div>
 </div>
 {% endblock %}

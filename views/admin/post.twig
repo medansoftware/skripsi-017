@@ -76,18 +76,18 @@
 						</div>
 						<div class="form-group">
 							<label>Judul</label>
-							<input type="text" class="form-control" name="title" placeholder="Judul Halaman" value="{{ data.title|default('') }}">
+							<input type="text" class="form-control" name="title" placeholder="Judul" value="{{ data.title|default('') }}">
 						</div>
 						<div class="form-group">
-							<label>URL Halaman</label>
+							<label>Permalink</label>
 							<div class="input-group" style="cursor: pointer;" onclick="edit_slug(this)">
-								<input class="form-control" type="text" name="slug" placeholder="URL Halaman" value="{{ data.slug|default('') }}" disabled>
+								<input class="form-control" type="text" name="slug" placeholder="Permalink" value="{{ data.slug|default('') }}" disabled>
 								<div class="input-group-addon"><i class="fa fa-pencil"></i></div>
 							</div>
 						</div>
 						<div class="form-group">
 							<label>Isi</label>
-							<textarea name="content" class="form-group wysihtml5" style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;">{{ data.content|default('') }}</textarea>
+							<div id="summernote">{{ data.content | default('') }}</div>
 						</div>
 					{% endif %}
 				</div>
@@ -123,8 +123,40 @@ $('input[name="title"]').on('keyup', () => {
 
 
 <script type="text/javascript">
+const uploadImage = (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  $.ajax({
+    url: '/image',
+    method: 'POST',
+    data: formData,
+    processData: false,
+    contentType: false,
+    success: function (response) {
+      if (response.path) {
+        $('#summernote').summernote('insertImage', `/uploads/${response.filename}`);
+      } else {
+        console.error('Response tidak mengandung URL gambar');
+      }
+    },
+    error: function(xhr, status, error) {
+      console.error('Upload gagal:', error);
+    }
+  });
+};
 $(document).ready(function() {
-	$('.wysihtml5').wysihtml5();
+	$('#summernote').summernote({
+		height: 300,
+		callbacks: {
+			onImageUpload: function(files) {
+				for (let i = 0; i < files.length; i++) {
+					uploadImage(files[i])
+				}
+			}
+		}
+	});
+	$('#summernote').summernote('code', $('#summernote').text());
 });
 
 $('#post').on('submit', function(e) {
@@ -137,11 +169,11 @@ $('#post').on('submit', function(e) {
 			type: $('select[name="type"]').val(),
 			title: $('input[name="title"]').val(),
 			slug: $('input[name="slug"]').val(),
-			content: $('textarea[name="content"]').val()
+			content: $('#summernote').summernote('code')
 		},
 		success: function(data) {
 			if (data.status == 'success') {
-				window.location.href = '/admin';
+				window.location.href = '/admin/post';
 			}
 		},
 		error: function(error) {

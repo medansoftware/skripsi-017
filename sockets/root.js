@@ -74,7 +74,6 @@ io.of('/').on('connection', (socket) => {
 			});
 
 			if (data.from == 'guest') {
-
 				if (admins.length < 1) {
 					if (chat !== null) {
 						var Naive_Bayes = require('wink-naive-bayes-text-classifier')();

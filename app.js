@@ -8,8 +8,13 @@ const flash = require('connect-flash'); // Session flash
 const express_session = require('express-session'); // ExpressJS session
 const express_socketio_session = require('express-socket.io-session'); // ExpressJs + Socket.io session
 const FileStore = require('session-file-store')(express_session); // ExpressJs session with file
-const moment_timezone = require('moment-timezone'); // MomentJs for time
-const moment_duration = require('moment-duration-format'); // MomentJs duration package
+// const moment_timezone = require('moment-timezone'); // MomentJs for time
+// const moment_duration = require('moment-duration-format'); // MomentJs duration package
+const htmlparser2 = require('htmlparser2');
+const { DomHandler } = require('domhandler');
+const domSerializer = require('dom-serializer').default;
+const sanitizeHtml = require('sanitize-html');
+const { diskStorage } = require('./middlewares');
 // Initialize expressJs session
 const session = express_session({
 	store: new FileStore(),
@@ -18,6 +23,58 @@ const session = express_session({
 	saveUninitialized: true,
 	// cookie: { secure: false, maxAge: Date.now() + (30 * 86400 * 1000) }
 });
+function excerptHTML(html, limit = 100) {
+  const handler = new DomHandler();
+  const parser = new htmlparser2.Parser(handler, { decodeEntities: true });
+  parser.write(html);
+  parser.end();
+
+  let charCount = 0;
+  let done = false;
+
+  function traverse(nodes) {
+    const result = [];
+
+    for (const node of nodes) {
+      if (done) break;
+
+      if (node.type === 'text') {
+        const text = node.data;
+
+        if (charCount + text.length > limit) {
+          const remaining = limit - charCount;
+          const excerptText = text.slice(0, remaining);
+          charCount = limit;
+          done = true;
+          result.push({
+            type: 'text',
+            data: excerptText + '...'
+          });
+        } else {
+          charCount += text.length;
+          result.push(node);
+        }
+      } else if (node.type === 'tag' || node.type === 'script' || node.type === 'style') {
+        // clone node but process children
+        const children = traverse(node.children || []);
+        result.push({
+          ...node,
+          children
+        });
+      } else {
+        // for comments or others, just push as is
+        result.push(node);
+      }
+    }
+
+    return result;
+  }
+
+  const excerptDom = traverse(handler.dom);
+
+  // Serialize DOM kembali ke HTML
+  return domSerializer(excerptDom, { encodeEntities: true });
+}
 const io = require('socket.io')(http, { path: '/ws' });
 io.use(express_socketio_session(session, { autoSave: true })); // Initialize expressjs session with socket.io
 
@@ -123,7 +180,7 @@ Initialize_Database().then(async init => {
 	if (user < 1) {
 		await Models.user.create({
 			role: 'admin',
-			email: 'admin@nlp-naive-bayes.com',
+			email: 'admin@chat-bot.ust.ac.id',
 			username: 'admin',
 			password: sha1('admin').toString(),
 			full_name: 'Administrator'
@@ -131,7 +188,7 @@ Initialize_Database().then(async init => {
 
 		await Models.user.create({
 			role: 'admin',
-			email: 'bot@nlp-naive-bayes.com',
+			email: 'bot@chat-bot.ust.ac.id',
 			username: 'bot',
 			password: sha1('bot').toString(),
 			full_name: 'Bot'
@@ -145,15 +202,17 @@ app.use(
 	flash(),
 	express.json(),
 	express.urlencoded({ extended: true }),
-	express.static(__dirname+'/public')
+	express.static(__dirname+'/public'),
 );
+
+app.use('/uploads', express.static('storage/uploads'));
 app.set('views', __dirname+'/views'); // Initialize view files to express js
 app.set('view engine', 'twig'); // Initialize view engine to twig
 app.use(cors({ origin : (origin, callback) => { callback(null, true) }, credentials: true })); // Initialize HTTP CORS
 app.use((req, res, next) => {
 	res.locals.app = {
-		name: 'Kelurahan Medan Tenggara',
-		vendor: 'Kesuma Dwi Ningtyas', // 0851-5603-3913
+		name: 'Universitas Katolik Santo Thomas',
+		vendor: 'Rezeki Bancin',
 		version: 'v1.0.0'
 	}
 
@@ -295,6 +354,15 @@ app.get('/', Middleware.chat, (req, res) => {
 				type: 'post'
 			}
 		});
+
+		post = post.map((item) => {
+			return {
+				...item.toJSON(),
+				created_at: moment(item.created_at).format('DD MMMM YYYY'),
+				updated_at: moment(item.updated_at).format('DD MMMM YYYY'),
+				excerpt: excerptHTML(item.content.replace(/<img[^>]*>/gi, ''))
+			}
+		})
 	} else {
 		var post = await Models.post.findOne({
 			where: {
@@ -372,6 +440,8 @@ app.get('/', Middleware.chat, (req, res) => {
 		delete req.session.chat;
 		res.json({ status: 'success' });
 	}
+}).post('/image', diskStorage('uploads').single('image'), (req,res) => {
+	res.json(req.file);
 });
 
 /**
@@ -532,12 +602,15 @@ app
 .post('/admin/post/:option?/:id?', Middleware.admin, Middleware.notification, Middleware.chats, async (req, res) => {
 	var data = null;
 	if (req.params.option == undefined || req.params.option == 'add') {
-		Models.post.create({
+		await Models.post.create({
 			type: req.body.type,
 			title: req.body.title,
 			slug: req.body.slug,
 			content: req.body.content
 		});
+
+		console.log(req.body.content)
+		console.log('SANITIZED',sanitizeHtml(req.body.content))
 	} else if (req.params.option == 'edit') {
 		var post = await Models.post.findOne({
 			where: {
@@ -546,12 +619,15 @@ app
 		});
 
 		if (post !== null) {
-			post.update({
+			await post.update({
 				type: req.body.type,
 				title: req.body.title,
 				slug: req.body.slug,
 				content: req.body.content
 			});
+
+			console.log(req.body.content)
+			console.log('SANITIZED',sanitizeHtml(req.body.content))
 		}
 	}
 

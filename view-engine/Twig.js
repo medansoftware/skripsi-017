@@ -6,8 +6,6 @@
  * - https://nightlycommit.github.io/twing/api.html Twing for Developers
  */
 
-const fs = require('fs');
-const path = require('path');
 const twing = require('twing');
 
 class Twig {

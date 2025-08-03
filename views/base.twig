@@ -21,8 +21,9 @@
 	<body>
 		{% include 'components/navbar.twig' %}
 		{% include 'components/live_chat.twig' %}
+		<div class="container container-fluid">
 		{% block content %}{% endblock %}
-		{% include 'components/footer.twig' %}
+		</div>
 		<script src="/ws/socket.io.min.js"></script>
 		<script src="/assets/jQuery/jquery-3.6.0.min.js"></script>
 		<script src="/assets/bootstrap/v3/dist/js/bootstrap.min.js"></script>
